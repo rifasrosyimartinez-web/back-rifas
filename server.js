@@ -246,7 +246,19 @@ app.get("/api/raffles", async (req, res) => {
       ),
     }));
 
-    res.json(updatedRaffles);
+    const soldNumbers = await Ticket.find(
+      { approved: true },
+      { approvalCodes: 1 }
+    );
+
+    const allSoldNumbers = soldNumbers.flatMap(
+      (ticket) => ticket.approvalCodes
+    );
+
+    res.json({
+      ...updatedRaffles,
+      totalSold: allSoldNumbers.length,
+    });
   } catch (error) {
     console.error("Error al obtener rifas:", error);
     res.status(500).json({ error: "Error al obtener rifas" });
@@ -319,57 +331,58 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
     ticket.approvalCodes = approvalCodes;
     await ticket.save();
 
+    
     const mailOptions = {
       from: '"Soporte Rifas Rosyi Martinez" <rifasrosyimartinez@gmail.com>',
       to: ticket.email,
       subject: "🎟️ ¡TU COMPRA HA SIDO CONFIRMADA!",
       html: `
-  <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd;">
-
-     <!-- Logo -->
-          <div style="margin-bottom: 20px;">
-            <img src="cid:logoImage" alt="Logo" style="width: 100px; height: 100px; border-radius: 50%; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
-          </div>
-
-  <p style="margin-top: 20px;">Holaa ${ticket?.fullName
-        }, ¡Gracias por tu compra! ${activeRaffle.name} 🎉</p>
-  <h2 style="color: #4CAF50;">✅ ¡Felicidades tus tickets han sido aprobados!</h2>
-
-       <p><strong>Usuario:</strong> ${ticket?.fullName}</p>
-       <p><strong>📧 Correo asociado:</strong> ${ticket?.email}</p>
-       <p><strong>📅 Fecha de aprobación:</strong> ${new Date().toLocaleDateString(
-          "es-ES",
-          { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-        )}</p>
-
-    <p>Ticket(s) comprado(s) (${ticket.approvalCodes?.length}):</p>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px; max-width: 100%; margin: 0 auto;">
-      ${approvalCodes
-          .map(
-            (code) => `
-          <div style="background: #f4f4f4; margin-bottom: 10px; padding: 12px 16px; border-radius: 8px; font-size: 18px; font-weight: bold; border: 1px solid #ddd; text-align: center;">
-           🎟️ ${code}
-          </div>
-        `
-          )
-          .join("")}
-    </div>
-    <strong>Puedes comprar mas y aumentar tus posibilidades de ganar.<br>Estos numeros son elegidos aleatoriamente.</strong>
-    <p style="text-align: center; margin-top: 30px;"><strong>Saludos,</strong><br>Equipo de  Rosyi Martinez</p>
-
-      <p style="font-size: 14px; color: #666;">📲 ¡Síguenos en nuestras redes sociales!</p>
-
-      <div style=" justify-content: center; gap: 15px; margin: 0px;">
-        <a href="https://www.tiktok.com/@rosyi4?_t=ZM-8yk5UEL3gOL&_r=1" target="_blank" style="text-decoration: none;">
-          <img src="https://cdn-icons-png.flaticon.com/512/3046/3046122.png" alt="TikTok" width="32" height="32">
-        </a>
-        <a href="https://www.instagram.com/rosyioficial?igsh=Zzl5M3hobng2YXV0" target="_blank" style="text-decoration: none;">
-          <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram" width="32" height="32">
-        </a>
+      <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd;">
+      
+      <!-- Logo -->
+      <div style="margin-bottom: 20px;">
+      <img src="cid:logoImage" alt="Logo" style="width: 100px; height: 100px; border-radius: 50%; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
       </div>
-  </div>
-  
-  `,
+      
+      <p style="margin-top: 20px;">Holaa ${ticket?.fullName
+      }, ¡Gracias por tu compra! ${activeRaffle.name} 🎉</p>
+      <h2 style="color: #4CAF50;">✅ ¡Felicidades tus tickets han sido aprobados!</h2>
+      
+      <p><strong>Usuario:</strong> ${ticket?.fullName}</p>
+         <p><strong>📧 Correo asociado:</strong> ${ticket?.email}</p>
+         <p><strong>📅 Fecha de aprobación:</strong> ${new Date().toLocaleDateString(
+           "es-ES",
+           { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+          )}</p>
+          
+      <p>Ticket(s) comprado(s) (${ticket.approvalCodes?.length}):</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px; max-width: 100%; margin: 0 auto;">
+      ${approvalCodes
+        .map(
+            (code) => `
+            <div style="background: #f4f4f4; margin-bottom: 10px; padding: 12px 16px; border-radius: 8px; font-size: 18px; font-weight: bold; border: 1px solid #ddd; text-align: center;">
+            🎟️ ${code}
+            </div>
+          `
+        )
+        .join("")}
+        </div>
+        <strong>Puedes comprar mas y aumentar tus posibilidades de ganar.<br>Estos numeros son elegidos aleatoriamente.</strong>
+        <p style="text-align: center; margin-top: 30px;"><strong>Saludos,</strong><br>Equipo de  Rosyi Martinez</p>
+        
+        <p style="font-size: 14px; color: #666;">📲 ¡Síguenos en nuestras redes sociales!</p>
+        
+        <div style=" justify-content: center; gap: 15px; margin: 0px;">
+          <a href="https://www.tiktok.com/@rosyi4?_t=ZM-8yk5UEL3gOL&_r=1" target="_blank" style="text-decoration: none;">
+            <img src="https://cdn-icons-png.flaticon.com/512/3046/3046122.png" alt="TikTok" width="32" height="32">
+          </a>
+          <a href="https://www.instagram.com/rosyioficial?igsh=Zzl5M3hobng2YXV0" target="_blank" style="text-decoration: none;">
+          <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram" width="32" height="32">
+          </a>
+          </div>
+          </div>
+          
+          `,
       attachments: [
         {
           filename: "logo.png",
@@ -382,6 +395,7 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
     res
       .status(200)
       .json({ message: "Ticket aprobado y códigos enviados", approvalCodes });
+
   } catch (error) {
     console.error("Error al aprobar el ticket:", error);
     res.status(500).json({ error: "Error al aprobar el ticket" });
