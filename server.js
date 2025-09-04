@@ -325,7 +325,7 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
     await ticket.save();
 
     const sendSmtpEmail = {
-      sender: { name: "Soporte Rosyi Martinez", email: "rifasrosyimartinez@gmail.com" },
+      sender: { name: "Soporte Rosyi Martinez", email: "rosyimartinezsp@gmail.com" },
       to: [{ email: ticket.email, name: ticket.fullName }],
       subject: "🎟️ ¡TU COMPRA HA SIDO CONFIRMADA!",
       htmlContent: `
@@ -422,7 +422,7 @@ app.post("/api/tickets/resend/:id", async (req, res) => {
 
 
     const sendSmtpEmail = {
-      sender: { name: "Soporte Rosyi Martinez", email: "rifasrosyimartinez@gmail.com" },
+      sender: { name: "Soporte Rosyi Martinez", email: "rosyimartinezsp@gmail.com" },
       to: [{ email: ticket.email, name: ticket.fullName }],
       subject: "🎟️ Reenvío de Ticket Aprobado",
       htmlContent: `
