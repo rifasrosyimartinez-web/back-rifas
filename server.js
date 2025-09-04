@@ -72,18 +72,11 @@ const Raffle = mongoose.model("Raffle", RaffleSchema);
 const Ticket = mongoose.model("Ticket", TicketSchema);
 const Dollar = mongoose.model("Dollar", DollarPriceSchema);
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: "rifasrosyimartinez@gmail.com",
-    pass: "ckly vjbk mzte thac",
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const SibApiV3Sdk = require("sib-api-v3-sdk");
+let defaultClient = SibApiV3Sdk.ApiClient.instance;
+let apiKey = defaultClient.authentications["api-key"];
+apiKey.apiKey = process.env.BREVO_API_KEY;
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -331,12 +324,11 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
     ticket.approvalCodes = approvalCodes;
     await ticket.save();
 
-    
-    const mailOptions = {
-      from: '"Soporte Rifas Rosyi Martinez" <rifasrosyimartinez@gmail.com>',
-      to: ticket.email,
+    const sendSmtpEmail = {
+      sender: { name: "Soporte Rosyi Martinez", email: "rifasrosyimartinez@gmail.com" },
+      to: [{ email: ticket.email, name: ticket.fullName }],
       subject: "🎟️ ¡TU COMPRA HA SIDO CONFIRMADA!",
-      html: `
+      htmlContent: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd;">
       
       <!-- Logo -->
@@ -345,27 +337,27 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
       </div>
       
       <p style="margin-top: 20px;">Holaa ${ticket?.fullName
-      }, ¡Gracias por tu compra! ${activeRaffle.name} 🎉</p>
+        }, ¡Gracias por tu compra! ${activeRaffle.name} 🎉</p>
       <h2 style="color: #4CAF50;">✅ ¡Felicidades tus tickets han sido aprobados!</h2>
       
       <p><strong>Usuario:</strong> ${ticket?.fullName}</p>
          <p><strong>📧 Correo asociado:</strong> ${ticket?.email}</p>
          <p><strong>📅 Fecha de aprobación:</strong> ${new Date().toLocaleDateString(
-           "es-ES",
-           { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-          )}</p>
+          "es-ES",
+          { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+        )}</p>
           
       <p>Ticket(s) comprado(s) (${ticket.approvalCodes?.length}):</p>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px; max-width: 100%; margin: 0 auto;">
       ${approvalCodes
-        .map(
+          .map(
             (code) => `
             <div style="background: #f4f4f4; margin-bottom: 10px; padding: 12px 16px; border-radius: 8px; font-size: 18px; font-weight: bold; border: 1px solid #ddd; text-align: center;">
             🎟️ ${code}
             </div>
           `
-        )
-        .join("")}
+          )
+          .join("")}
         </div>
         <strong>Puedes comprar mas y aumentar tus posibilidades de ganar.<br>Estos numeros son elegidos aleatoriamente.</strong>
         <p style="text-align: center; margin-top: 30px;"><strong>Saludos,</strong><br>Equipo de  Rosyi Martinez</p>
@@ -383,15 +375,10 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
           </div>
           
           `,
-      attachments: [
-        {
-          filename: "logo.png",
-          path: "images/logo.png", // Ruta donde tienes la imagen del logo en tu servidor
-          cid: "logoImage", // Se usa como referencia en el HTML
-        },
-      ],
     };
-    await transporter.sendMail(mailOptions);
+
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+
     res
       .status(200)
       .json({ message: "Ticket aprobado y códigos enviados", approvalCodes });
@@ -433,11 +420,12 @@ app.post("/api/tickets/resend/:id", async (req, res) => {
         .json({ error: "No hay una rifa activa en este momento." });
     }
 
-    const mailOptions = {
-      from: '"Soporte Rifas Rosyi Martinez" <rifasrosyimartinez@gmail.com>',
-      to: ticket.email,
+
+    const sendSmtpEmail = {
+      sender: { name: "Soporte Rosyi Martinez", email: "rifasrosyimartinez@gmail.com" },
+      to: [{ email: ticket.email, name: ticket.fullName }],
       subject: "🎟️ Reenvío de Ticket Aprobado",
-      html: `
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd;">
     
           <!-- Logo -->
@@ -486,16 +474,10 @@ app.post("/api/tickets/resend/:id", async (req, res) => {
           </div>
         </div>
       `,
-      attachments: [
-        {
-          filename: "logo.png",
-          path: "images/logo.png", // Ruta donde tienes la imagen del logo en tu servidor
-          cid: "logoImage", // Se usa como referencia en el HTML
-        },
-      ],
     };
 
-    await transporter.sendMail(mailOptions);
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    
     res.status(200).json({ message: "Correo reenviado exitosamente" });
   } catch (error) {
     console.error("Error al reenviar el correo:", error);
