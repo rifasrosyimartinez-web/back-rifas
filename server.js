@@ -5,6 +5,9 @@ const multer = require("multer");
 const cors = require("cors");
 const path = require("path");
 const nodemailer = require("nodemailer");
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -71,12 +74,6 @@ const DollarPriceSchema = new mongoose.Schema({
 const Raffle = mongoose.model("Raffle", RaffleSchema);
 const Ticket = mongoose.model("Ticket", TicketSchema);
 const Dollar = mongoose.model("Dollar", DollarPriceSchema);
-
-const SibApiV3Sdk = require("sib-api-v3-sdk");
-let defaultClient = SibApiV3Sdk.ApiClient.instance;
-let apiKey = defaultClient.authentications["api-key"];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -324,11 +321,11 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
     ticket.approvalCodes = approvalCodes;
     await ticket.save();
 
-    const sendSmtpEmail = {
-      sender: { name: "Soporte Rosyi Martinez", email: "rosyimartinezsp@gmail.com" },
-      to: [{ email: ticket.email, name: ticket.fullName }],
+    await resend.emails.send({
+      from: "Soporte Rosyi Martinez <soporte@rosyimartinez.com>",
+      to: ticket.email,
       subject: "🎟️ ¡TU COMPRA HA SIDO CONFIRMADA!",
-      htmlContent: `
+      html: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd;">
       
       <!-- Logo -->
@@ -375,9 +372,7 @@ app.post("/api/tickets/approve/:id", async (req, res) => {
           </div>
           
           `,
-    };
-
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    });
 
     res
       .status(200)
@@ -420,12 +415,11 @@ app.post("/api/tickets/resend/:id", async (req, res) => {
         .json({ error: "No hay una rifa activa en este momento." });
     }
 
-
-    const sendSmtpEmail = {
-      sender: { name: "Soporte Rosyi Martinez", email: "rosyimartinezsp@gmail.com" },
-      to: [{ email: ticket.email, name: ticket.fullName }],
+    await resend.emails.send({
+      from: "Soporte Rosyi Martinez <soporte@rosyimartinez.com>",
+      to: ticket.email,
       subject: "🎟️ Reenvío de Ticket Aprobado",
-      htmlContent: `
+      html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd;">
     
           <!-- Logo -->
@@ -474,10 +468,8 @@ app.post("/api/tickets/resend/:id", async (req, res) => {
           </div>
         </div>
       `,
-    };
+    });
 
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    
     res.status(200).json({ message: "Correo reenviado exitosamente" });
   } catch (error) {
     console.error("Error al reenviar el correo:", error);
