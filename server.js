@@ -6,6 +6,7 @@ const cors = require("cors");
 const path = require("path");
 const nodemailer = require("nodemailer");
 const { Resend } = require('resend');
+const moment = require("moment-timezone");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -538,27 +539,41 @@ app.get("/api/tickets", async (req, res) => {
   }
 });
 
-app.get("/api/tickets/top-buyers", async (req, res) => {
+app.get("/api/tickets/top-buyers/:mode", async (req, res) => {
   try {
+    const { mode } = req.params;
+    let match = { approved: true };
+
+    if (mode === "today") {
+      const startOfDay = moment.tz("America/Caracas").startOf("day").toDate();
+      const endOfDay = moment.tz("America/Caracas").endOf("day").toDate();
+
+      match.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    } else if (mode === "yesterday") {
+      const startOfYesterday = moment.tz("America/Caracas").subtract(1, "day").startOf("day").toDate();
+      const endOfYesterday = moment.tz("America/Caracas").subtract(1, "day").endOf("day").toDate();
+
+      match.createdAt = { $gte: startOfYesterday, $lte: endOfYesterday };
+    }
+
     const topBuyers = await Ticket.aggregate([
+      { $match: match },
       {
-        $match: { approved: true },
+        $addFields: {
+          emailLower: { $toLower: "$email" },
+        },
       },
       {
         $group: {
-          _id: "$email",
+          _id: "$emailLower",
           fullName: { $first: "$fullName" },
           phone: { $first: "$phone" },
           totalTickets: { $sum: "$numberTickets" },
           purchases: { $sum: 1 },
         },
       },
-      {
-        $sort: { totalTickets: -1 },
-      },
-      {
-        $limit: 10,
-      },
+      { $sort: { totalTickets: -1 } },
+      { $limit: 10 },
     ]);
 
     res.json(topBuyers);
